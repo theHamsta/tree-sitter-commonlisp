@@ -1928,6 +1928,33 @@
         {
           "type": "loop_clause",
           "named": true
+        },
+        {
+          "type": "loop_named_clause",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "loop_named_clause",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "comment",
+          "named": true
+        },
+        {
+          "type": "dis_expr",
+          "named": true
+        },
+        {
+          "type": "sym_lit",
+          "named": true
         }
       ]
     }
@@ -4694,7 +4721,8 @@
   },
   {
     "type": "block_comment",
-    "named": true
+    "named": true,
+    "extra": true
   },
   {
     "type": "by",
@@ -4774,6 +4802,10 @@
   },
   {
     "type": "loop",
+    "named": false
+  },
+  {
+    "type": "named",
     "named": false
   },
   {

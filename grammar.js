@@ -247,6 +247,7 @@ module.exports = grammar(clojure, {
         condition_clause: $ => prec.left(choice(seq(choice(loopSymbol('when'), loopSymbol('if'), loopSymbol('unless'), loopSymbol('always'), loopSymbol('thereis'), loopSymbol('never')), repeat($._gap), $._form), loopSymbol("else"))),
         accumulation_clause: $ => seq($.accumulation_verb, repeat($._gap), $._form, optional(seq(repeat($._gap), loopSymbol('into'), repeat($._gap), $._form))),
         termination_clause: $ => prec.left(seq(choice(loopSymbol('finally'), loopSymbol('return'), loopSymbol('initially')), repeat($._gap), $._form)),
+        loop_named_clause: $ => seq(loopSymbol('named'), repeat($._gap), $.sym_lit),
 
 
         loop_clause: $ =>
@@ -268,7 +269,11 @@ module.exports = grammar(clojure, {
                 seq(field('open', "("),
                     optional($._gap),
                     clSymbol('loop'),
-                    repeat(choice($.loop_clause, $._gap)),
+                    repeat($._gap),
+                    optional(seq(
+                        choice($.loop_named_clause, $.loop_clause),
+                        repeat(choice($.loop_clause, $._gap)),
+                    )),
                     field('close', ")"))),
 
         defun_keyword: _ => prec(10, clSymbol(choice('defun', 'defmacro', 'defgeneric', 'defmethod'))),
