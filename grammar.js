@@ -123,12 +123,59 @@ function optSeq(...args) {
 }
 
 
+
+// Lambda lists are data: their nested lists must not be parsed as DEFUN or LOOP.
+function form($, list) {
+    return seq(optional('#'),
+                choice(
+                    $.num_lit,
+                    $.fancy_literal,
+                    $.vec_lit,
+                    $.kwd_lit,
+                    // No idea why this is necessary...It is never used but triggers some background magic
+                    alias(seq(field('open', '#'), optional(/\d+[aA]/), list), $.vec_lit),
+                    $.str_lit,
+                    $.self_referential_reader_macro,
+                    $.char_lit,
+                    $.nil_lit,
+                    $.path_lit,
+                    $.sym_lit,
+                    alias('lambda', $.sym_lit),
+                    alias('loop', $.sym_lit),
+                    $.package_lit,
+                    list,
+                    $.set_lit,
+                    $.read_cond_lit,
+                    $.splicing_read_cond_lit,
+                    $.var_quoting_lit,
+                    $.quoting_lit,
+                    $.syn_quoting_lit,
+                    $.unquote_splicing_lit,
+                    $.unquoting_lit,
+                    $.include_reader_macro,
+                    $.complex_num_lit,
+                    ".",
+                ));
+}
+
 module.exports = grammar(clojure, {
     name: 'commonlisp',
 
     extras: ($, original) => [...original, $.block_comment],
     conflicts: ($,
         original) => [...original,
+        [$._bare_list_lit, $.defun, $.loop_macro, $._lambda_list],
+        [$._bare_list_lit, $.loop_macro, $._lambda_list],
+        [$._bare_list_lit, $.defun, $._lambda_list],
+        [$.defun],
+        [$._bare_list_lit, $.defun, $.loop_macro],
+        [$.loop_macro, $.defun_keyword, $.package_lit],
+        [$._lambda_list_form],
+        [$.defun, $._bare_list_lit],
+        [$.loop_macro, $._bare_list_lit],
+        [$._form, $.loop_macro],
+        [$._form, $.defun_header],
+        [$._bare_list_lit, $._lambda_list],
         [$.for_clause_word, $.package_lit],
         [$.with_clause, $.package_lit],
         [$.with_clause],
@@ -161,7 +208,7 @@ module.exports = grammar(clojure, {
                 field('value', ($._form))),
 
         defun: $ =>
-            prec(PREC.SPECIAL, seq(field('open', "("),
+            prec.dynamic(PREC.SPECIAL, seq(field('open', "("),
                 optional($._gap),
                 $.defun_header,
                 optional($._gap),
@@ -264,7 +311,7 @@ module.exports = grammar(clojure, {
             )),
 
         loop_macro: $ =>
-            prec(PREC.SPECIAL,
+            prec.dynamic(PREC.SPECIAL,
                 seq(field('open', "("),
                     optional($._gap),
                     clSymbol('loop'),
@@ -274,7 +321,7 @@ module.exports = grammar(clojure, {
         defun_keyword: _ => prec(10, clSymbol(choice('defun', 'defmacro', 'defgeneric', 'defmethod'))),
 
         defun_header: $ =>
-            prec(PREC.SPECIAL, choice(
+            prec.dynamic(PREC.SPECIAL, choice(
                 seq(field('keyword', $.defun_keyword),
                     repeat($._gap),
                     choice($.unquoting_lit, $.unquote_splicing_lit)
@@ -284,10 +331,10 @@ module.exports = grammar(clojure, {
                     field('function_name', $._form),
                     optional(field('specifier', seq(repeat($._gap), choice($.kwd_lit, $.sym_lit)))),
                     repeat($._gap),
-                    field('lambda_list', choice($.list_lit, $.unquoting_lit))),
+                    field('lambda_list', choice(alias($._lambda_list, $.list_lit), $.unquoting_lit))),
                 seq(field('keyword', alias('lambda', $.defun_keyword)),
                     repeat($._gap),
-                    field('lambda_list', choice($.list_lit, $.unquoting_lit)))
+                    field('lambda_list', choice(alias($._lambda_list, $.list_lit), $.unquoting_lit)))
             )),
 
         array_dimension: _ => prec(100, /\d+[aA]/),
@@ -306,8 +353,8 @@ module.exports = grammar(clojure, {
                 seq(field('open', choice('#P', '#p')), alias(STRING, $.str_lit))),
 
         _bare_list_lit: $ =>
-            choice(prec(PREC.SPECIAL, $.defun),
-                prec(PREC.SPECIAL, $.loop_macro),
+            choice(prec.dynamic(PREC.SPECIAL, $.defun),
+                prec.dynamic(PREC.SPECIAL, $.loop_macro),
                 seq(field('open', "("),
                     repeat(choice(field('value', $._form), $._gap)),
                     field('close', ")"))),
@@ -340,35 +387,12 @@ module.exports = grammar(clojure, {
 
         self_referential_reader_macro: _ => /#\d+[=#]/,
 
-        _form: $ =>
-            seq(optional('#'),
-                choice(
-                    $.num_lit,
-                    $.fancy_literal,
-                    $.vec_lit,
-                    $.kwd_lit,
-                    // No idea why this is necessary...It is never used but triggers some background magic
-                    alias(seq(field('open', '#'), optional(/\d+[aA]/), $.list_lit), $.vec_lit),
-                    $.str_lit,
-                    $.self_referential_reader_macro,
-                    $.char_lit,
-                    $.nil_lit,
-                    $.path_lit,
-                    $.sym_lit,
-                    $.package_lit,
-                    $.list_lit,
-                    $.set_lit,
-                    $.read_cond_lit,
-                    $.splicing_read_cond_lit,
-                    $.var_quoting_lit,
-                    $.quoting_lit,
-                    $.syn_quoting_lit,
-                    $.unquote_splicing_lit,
-                    $.unquoting_lit,
-                    $.include_reader_macro,
-                    $.complex_num_lit,
-                    ".",
-                )),
+        _form: $ => form($, $.list_lit),
+
+        _lambda_list_form: $ => prec(1, form($, alias($._lambda_list, $.list_lit))),
+        _lambda_list: $ => prec(1, seq(field('open', '('),
+            repeat(choice(field('value', $._lambda_list_form), $._gap)),
+            field('close', ')'))),
 
         num_lit: _ =>
             seq(NUMBER, optional(/[sSfFdDlL]/)),

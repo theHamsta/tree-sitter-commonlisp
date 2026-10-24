@@ -1,0 +1,98 @@
+==================
+Parameter named lambda does not consume following definitions
+==================
+(defun inline-closure (lambda env) (list lambda env))
+(defun after () t)
+
+---
+
+(source
+  (list_lit
+    (defun
+      (defun_header
+        (defun_keyword)
+        (sym_lit)
+        (list_lit
+          (sym_lit)
+          (sym_lit)))
+      (list_lit
+        (sym_lit)
+        (sym_lit)
+        (sym_lit))))
+  (list_lit
+    (defun
+      (defun_header
+        (defun_keyword)
+        (sym_lit)
+        (list_lit))
+      (sym_lit))))
+
+==================
+Nested lambda-list forms are data, including LOOP and destructuring
+==================
+(defun loop-context (&aux (loop *loop*)) loop)
+(defmacro destructure ((lambda loop) &body body) body)
+
+---
+
+(source
+  (list_lit
+    (defun
+      (defun_header
+        (defun_keyword)
+        (sym_lit)
+        (list_lit
+          (sym_lit)
+          (list_lit
+            (sym_lit)
+            (sym_lit))))
+      (sym_lit)))
+  (list_lit
+    (defun
+      (defun_header
+        (defun_keyword)
+        (sym_lit)
+        (list_lit
+          (list_lit
+            (sym_lit)
+            (sym_lit))
+          (sym_lit)
+          (sym_lit)))
+      (sym_lit))))
+
+==================
+Special form names are legal binding names
+==================
+(defun bindings () (let ((loop *loop*) (lambda 'lambda)) (list loop lambda)))
+(defun after-bindings () t)
+
+---
+
+(source
+  (list_lit
+    (defun
+      (defun_header
+        (defun_keyword)
+        (sym_lit)
+        (list_lit))
+      (list_lit
+        (sym_lit)
+        (list_lit
+          (list_lit
+            (sym_lit)
+            (sym_lit))
+          (list_lit
+            (sym_lit)
+            (quoting_lit
+              (sym_lit))))
+        (list_lit
+          (sym_lit)
+          (sym_lit)
+          (sym_lit)))))
+  (list_lit
+    (defun
+      (defun_header
+        (defun_keyword)
+        (sym_lit)
+        (list_lit))
+      (sym_lit))))
